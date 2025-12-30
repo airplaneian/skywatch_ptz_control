@@ -1,0 +1,352 @@
+:root {
+    --bg-color: #000;
+    --panel-bg: #c0c0c0;
+    --text-main: #e0e0e0;
+    /* Still light for OSD */
+    --text-sidebar: #000000;
+    --accent-red: #ff3333;
+    --accent-green: #33ff33;
+    /* Keep for OSD active states */
+    --border-light: #ffffff;
+    --border-dark: #404040;
+    --font-mono: monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    width: 100vw;
+    height: 100vh;
+    overflow: auto;
+    /* Allow scrolling */
+    display: flex;
+    justify-content: flex-start;
+    /* Align left for fixed width */
+    align-items: flex-start;
+    /* Align top */
+}
+
+.main-container {
+    width: 2560px;
+    /* Full monitor width */
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1920px 1fr;
+    /* Video fixed, sidebar fills rest */
+    background-color: #000;
+    max-width: none;
+    max-height: none;
+}
+
+@media (max-width: 2560px) {
+    /* Responsive handling needed? Just letting CSS Grid/Flex handle aspect ratio */
+    /* For now forcing the aspect ratio might be complex without JS, but let's assume 1440p monitor */
+}
+
+/* Video Section */
+.video-section {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    background: #000;
+    border-right: 2px solid var(--border-color);
+    margin: 0;
+}
+
+#video-stream {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* Let clicks pass through if needed */
+}
+
+/* OSD Elements */
+.top-left {
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    font-size: 20px;
+    line-height: 1.5;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.bottom-left {
+    position: absolute;
+    bottom: 30px;
+    left: 30px;
+    font-size: 20px;
+    line-height: 1.5;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.center-status {
+    position: absolute;
+    top: 50%;
+    left: 30px;
+    /* Aligned left to match other elements */
+    transform: translateY(-50%);
+    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.status-indicator {
+    font-size: 20px;
+    color: var(--accent-red);
+    /* Default standby color handled via JS */
+    font-weight: normal;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.stab-indicator {
+    font-size: 20px;
+    color: var(--text-main);
+    text-shadow: 1px 1px 0 #000;
+}
+
+.ptz-readout {
+    position: absolute;
+    top: 30px;
+    right: 40px;
+    text-align: right;
+    font-size: 20px;
+    line-height: 1.5;
+}
+
+/* Sidebar */
+.control-sidebar {
+    background: var(--panel-bg);
+    color: var(--text-sidebar);
+    padding: 20px;
+    height: 100vh;
+    /* Fixed viewport height */
+    position: sticky;
+    top: 0;
+    border-left: 2px solid var(--border-dark);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+}
+
+.panel-header {
+    display: none;
+}
+
+/* WESCAM Gauges */
+.gauges-overlay {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 300px;
+    pointer-events: none;
+}
+
+.gauges-center-group {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.gauge-tilt,
+.gauge-pan {
+    width: 100px;
+    height: 100px;
+}
+
+.gauge-zoom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.gauge-zoom svg {
+    width: 250px;
+    height: 20px;
+    overflow: visible;
+    /* Allow marker to stick out if needed */
+}
+
+.label-w,
+.label-n {
+    font-size: 20px;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.control-group {
+    border: 2px groove var(--border-light);
+    padding: 15px;
+    background: transparent;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--text-sidebar);
+    font-size: 16px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+button {
+    background: var(--panel-bg);
+    color: var(--text-sidebar);
+    border-top: 2px solid var(--border-light);
+    border-left: 2px solid var(--border-light);
+    border-right: 2px solid var(--border-dark);
+    border-bottom: 2px solid var(--border-dark);
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    text-transform: uppercase;
+}
+
+button:hover {
+    background: #444;
+    border-color: #777;
+}
+
+button:active,
+button.active {
+    border-top: 2px solid var(--border-dark);
+    border-left: 2px solid var(--border-dark);
+    border-right: 2px solid var(--border-light);
+    border-bottom: 2px solid var(--border-light);
+    background: #b0b0b0;
+    transform: none;
+    /* Remove transform, use border for 3D effect */
+    padding-top: 9px;
+    /* Simulate press */
+    padding-left: 11px;
+    padding-right: 9px;
+    padding-bottom: 7px;
+}
+
+.btn-primary {
+    background: var(--panel-bg);
+    /* Use standard grey */
+    /* border-color removed to keep 3D effect */
+}
+
+/* Remove hover color override if present for btn-primary */
+.btn-primary:hover {
+    background: #d0d0d0;
+    /* Slight highlight */
+}
+
+.btn-primary.active,
+.btn-toggle.active {
+    background: #b0b0b0;
+    /* Darker grey to show depressed state */
+    color: #000;
+    /* Inset borders for depressed look */
+    border-top: 2px solid var(--border-dark);
+    border-left: 2px solid var(--border-dark);
+    border-right: 2px solid var(--border-light);
+    border-bottom: 2px solid var(--border-light);
+    padding-top: 9px;
+    padding-left: 11px;
+    padding-right: 9px;
+    padding-bottom: 7px;
+}
+
+.pid-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.input-wrap {
+    flex: 1 1 100px;
+    display: flex;
+    flex-direction: column;
+}
+
+input[type="number"],
+input[type="range"] {
+    background: #fff;
+    border-top: 2px solid var(--border-dark);
+    border-left: 2px solid var(--border-dark);
+    border-right: 2px solid var(--border-light);
+    border-bottom: 2px solid var(--border-light);
+    color: #000;
+    padding: 5px;
+    font-family: var(--font-mono);
+    font-size: 16px;
+}
+
+/* D-Pad */
+.dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    width: 200px;
+    margin: 0 auto;
+}
+
+.d-btn {
+    height: 50px;
+    font-size: 20px;
+}
+
+.up {
+    grid-column: 2;
+}
+
+.left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.center {
+    grid-column: 2;
+    grid-row: 2;
+    background: var(--panel-bg);
+    /* Remove explicit red bg */
+}
+
+.right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+.down {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+.zoom-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
