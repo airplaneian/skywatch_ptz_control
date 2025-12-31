@@ -70,10 +70,7 @@ class SkyWatchCore:
             'last_visca_time': 0
         }
 
-        # Recording State
-        self.recording = False
-        self.video_writer = None
-        self.download_dir = os.path.expanduser("~/Downloads")
+
 
         # Shared Data for Web (Thread-Safe Inteface)
         self.latest_frame = None # The final frame with OSD
@@ -84,8 +81,7 @@ class SkyWatchCore:
             'status': "STANDBY",
             'fps': 0,
             'track_active': False,
-            'stab_active': self.digital_stabilization_active,
-            'recording': False # Added recording status
+            'stab_active': self.digital_stabilization_active
         }
         
         # Manual Control Request
@@ -115,10 +111,6 @@ class SkyWatchCore:
             self.ptz.stop_polling()
         if self.video:
             self.video.stop()
-        # Ensure video writer is released on stop
-        if self.video_writer:
-            self.video_writer.release()
-            self.video_writer = None
         print("SkyWatch Core Stopped.")
 
     def set_manual_command(self, pan, tilt, zoom):
@@ -200,31 +192,7 @@ class SkyWatchCore:
         return prev_speed + ratio * (config.MAX_PAN_SPEED - prev_speed)
 
 
-    def toggle_recording(self):
-        with self.lock:
-            if not self.recording:
-                # Start Recording
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = os.path.join(self.download_dir, f"skywatch_rec_{timestamp}.mp4")
-                # Define codec - try mp4v (widely supported) or avc1
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
-                # Frame size must match input. Assuming 1920x1080 from config/camera
-                # Ideally get actual frame size, but config says WIDTH/HEIGHT
-                self.video_writer = cv2.VideoWriter(filename, fourcc, 30.0, (config.CAMERA_WIDTH, config.CAMERA_HEIGHT))
-                if self.video_writer.isOpened():
-                    self.recording = True
-                    print(f"Recording started: {filename}")
-                else:
-                    print("Failed to start recording")
-            else:
-                # Stop Recording
-                self.recording = False
-                if self.video_writer:
-                    self.video_writer.release()
-                    self.video_writer = None
-                print("Recording stopped")
 
-            self.telemetry['recording'] = self.recording
 
     def _safe_update_loop(self):
         try:
@@ -417,7 +385,10 @@ class SkyWatchCore:
                          self.manual_mode_active = False
 
             # 3. Stabilization / Display Prep
-            if self.digital_stabilization_active:
+            # Capture state locally to avoid race conditions during the frame
+            is_stabilizing = self.digital_stabilization_active
+            
+            if is_stabilizing:
                 crop_h = int(h * config.DIGITAL_CROP_FACTOR)
                 crop_w = int(w * config.DIGITAL_CROP_FACTOR)
                 
@@ -463,7 +434,7 @@ class SkyWatchCore:
 
             # Draw OSD (Shapes Only - Burned In)
             if self.tracking_active and cur_obj_center_x is not None:
-                if self.digital_stabilization_active:
+                if is_stabilizing:
                     scale_x = w / crop_w
                     scale_y = h / crop_h
                     disp_x = int((x - crop_x1) * scale_x)
@@ -487,15 +458,6 @@ class SkyWatchCore:
             # Update Telemetry (Thread Safe)
             with self.lock:
                 self.latest_frame = display_frame
-                
-                # --- Recording ---
-                if self.recording and self.video_writer:
-                    # Write the frame (stabilized or raw? User usually wants what they see, or raw?)
-                    # If digital stab is on, 'frame' is stabilized/cropped?
-                    # Let's write the 'display_frame' variable which is currently displayed.
-                    # Note: If 'display_frame' size changed due to stabilization (resize?), video writer might fail if size mismatch.
-                    # Our stabilization logic ensures output is resized back to CAMERA_WIDTH/HEIGHT.
-                    self.video_writer.write(display_frame) # Changed to display_frame
 
                 z_pos, p_pos, t_pos = self.ptz.get_cached_pos()
                 
@@ -507,7 +469,6 @@ class SkyWatchCore:
                 self.telemetry['kd'] = self.current_kd
                 self.telemetry['speed_limit'] = self.current_max_speed
                 self.telemetry['status'] = "TRACKING" if self.tracking_active else ("MANUAL" if self.manual_mode_active else "STANDBY")
-                self.telemetry['recording'] = self.recording # Added recording status
                 
                 if p_pos is not None:
                      p_signed = p_pos

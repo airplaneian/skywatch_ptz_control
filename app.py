@@ -69,8 +69,7 @@ def control():
     elif action == 'toggle_stab':
         core.toggle_stabilization()
 
-    elif action == 'toggle_record':
-        core.toggle_recording()
+
         
     elif action == 'set_pid':
         p = float(cmd.get('p'))

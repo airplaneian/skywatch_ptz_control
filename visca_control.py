@@ -159,8 +159,8 @@ class CameraControl:
         pan_dir = 3
         tilt_dir = 3
         
-        p_speed = abs(pan_speed)
-        t_speed = abs(tilt_speed)
+        p_speed = int(abs(pan_speed))
+        t_speed = int(abs(tilt_speed))
         
         if pan_speed > 0: pan_dir = 2 # Right
         elif pan_speed < 0: pan_dir = 1 # Left
@@ -188,7 +188,7 @@ class CameraControl:
         self._send_packet(cmd)
         
     def zoom(self, speed):
-        s = abs(speed)
+        s = int(abs(speed))
         if s > 7: s = 7
         
         if speed > 0: # Tele

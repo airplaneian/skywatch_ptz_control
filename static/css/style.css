@@ -67,68 +67,15 @@ body {
     display: block;
 }
 
-.video-overlay {
+/* Canvas Overlay */
+#osd-canvas {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
-    /* Let clicks pass through if needed */
-}
-
-/* OSD Elements */
-.top-left {
-    position: absolute;
-    top: 30px;
-    left: 30px;
-    font-size: 20px;
-    line-height: 1.5;
-    text-shadow: 1px 1px 0 #000;
-}
-
-.bottom-left {
-    position: absolute;
-    bottom: 30px;
-    left: 30px;
-    font-size: 20px;
-    line-height: 1.5;
-    text-shadow: 1px 1px 0 #000;
-}
-
-.center-status {
-    position: absolute;
-    top: 50%;
-    left: 30px;
-    /* Aligned left to match other elements */
-    transform: translateY(-50%);
-    align-items: flex-start;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.status-indicator {
-    font-size: 20px;
-    color: var(--accent-red);
-    /* Default standby color handled via JS */
-    font-weight: normal;
-    text-shadow: 1px 1px 0 #000;
-}
-
-.stab-indicator {
-    font-size: 20px;
-    color: var(--text-main);
-    text-shadow: 1px 1px 0 #000;
-}
-
-.ptz-readout {
-    position: absolute;
-    top: 30px;
-    right: 40px;
-    text-align: right;
-    font-size: 20px;
-    line-height: 1.5;
+    /* Ensure canvas resolution matches display or is handled by JS */
 }
 
 /* Sidebar */
@@ -150,54 +97,6 @@ body {
 
 .panel-header {
     display: none;
-}
-
-/* WESCAM Gauges */
-.gauges-overlay {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    width: 300px;
-    pointer-events: none;
-}
-
-.gauges-center-group {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-}
-
-.gauge-tilt,
-.gauge-pan {
-    width: 100px;
-    height: 100px;
-}
-
-.gauge-zoom {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-}
-
-.gauge-zoom svg {
-    width: 250px;
-    height: 20px;
-    overflow: visible;
-    /* Allow marker to stick out if needed */
-}
-
-.label-w,
-.label-n {
-    font-size: 20px;
-    font-weight: bold;
-    text-shadow: 1px 1px 0 #000;
 }
 
 .control-group {

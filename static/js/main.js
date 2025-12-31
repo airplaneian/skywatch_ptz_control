@@ -1,16 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Elements ---
+    // --- Elements ---
     const els = {
-        date: document.getElementById('osd-date'),
-        utc: document.getElementById('osd-utc'),
-        local: document.getElementById('osd-local'),
-        speed: document.getElementById('osd-speed'),
-        pid: document.getElementById('osd-pid'),
-        trackStatus: document.getElementById('osd-track-status'),
-        stabStatus: document.getElementById('osd-stab-status'),
-        az: document.getElementById('osd-az'),
-        el: document.getElementById('osd-el'),
-        zoom: document.getElementById('osd-zoom'),
         btnTrack: document.getElementById('btn-track'),
         btnStab: document.getElementById('btn-stab'),
         rangeSpeed: document.getElementById('range-speed'),
@@ -18,13 +9,18 @@ document.addEventListener('DOMContentLoaded', () => {
         inP: document.getElementById('input-p'),
         inI: document.getElementById('input-i'),
         inD: document.getElementById('input-d'),
-        inD: document.getElementById('input-d'),
         btnUpdatePid: document.getElementById('btn-update-pid'),
         btnRec: document.getElementById('btn-rec'),
-        needlePan: document.getElementById('needle-pan'),
-        needleTilt: document.getElementById('needle-tilt'),
-        needleZoom: document.getElementById('needle-zoom')
+        video: document.getElementById('video-stream'),
+        canvas: document.getElementById('osd-canvas')
     };
+
+    const ctx = els.canvas.getContext('2d');
+
+    // --- Recorder State ---
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let isRecording = false;
 
     // --- State ---
     let keysPressed = {};
@@ -49,63 +45,313 @@ document.addEventListener('DOMContentLoaded', () => {
     evtSource.onmessage = (e) => {
         const data = JSON.parse(e.data);
         updateUI(data);
+
+        // If recording, renderLoop handles drawing.
+        // If NOT recording, we must draw OSD here.
+        if (!isRecording) {
+            drawOSD(data);
+        }
     };
 
-    function updateUI(data) {
-        // Time
-        const now = new Date();
-        els.date.innerText = now.toLocaleDateString();
-        els.local.innerText = now.toLocaleTimeString('en-US', { hour12: false }) + " LCL";
-        els.utc.innerText = now.toISOString().split('T')[1].split('.')[0] + " Z";
+    // --- Canvas OSD Drawing ---
+    function drawOSD(data, skipClear = false) {
+        // Clear only if not compositing for recording
+        if (!skipClear) {
+            ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+        }
 
-        // Status
-        els.speed.innerText = `MAX SPD ${data.speed_limit.toFixed(2)} (SET)`;
-        els.pid.innerText = `P=${data.kp.toFixed(2)} I=${data.ki.toFixed(2)} D=${data.kd.toFixed(2)}`;
+        // Setup Font
+        ctx.font = '20px monospace';
+        ctx.shadowColor = 'rgba(0,0,0,1)';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString();
+        const timeLcl = now.toLocaleTimeString('en-US', { hour12: false }) + ' LCL';
+        const timeUtc = now.toISOString().split('T')[1].split('.')[0] + ' Z';
+
+        // Top Left
+        ctx.fillStyle = '#e0e0e0';
+        ctx.textBaseline = 'top';
+        ctx.textAlign = 'left';
+
+        let y = 30;
+        ctx.fillText('AIRPLANE IAN SYSTEMS 401', 30, y); y += 30;
+        ctx.fillText(dateStr, 30, y); y += 30;
+        ctx.fillText(timeUtc, 30, y); y += 30;
+        ctx.fillText(timeLcl, 30, y);
+
+        // Bottom Left
+        y = els.canvas.height - 30;
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(`P=${data.kp.toFixed(2)} I=${data.ki.toFixed(2)} D=${data.kd.toFixed(2)}`, 30, y); y -= 30;
+        ctx.fillText(`MAX SPD ${data.speed_limit.toFixed(2)} (SET)`, 30, y); y -= 30;
+        ctx.fillText('EXP AUT', 30, y); y -= 30;
+        ctx.fillText('FOC MAN', 30, y); y -= 30;
+        ctx.fillText('HDEO', 30, y);
+
+        // Left Center (Status)
+        y = els.canvas.height / 2 - 15;
+        ctx.textBaseline = 'middle';
 
         // Track Status
-        els.trackStatus.innerText = data.status === "TRACKING" ? "TRK ACT" : "TRK STBY";
-        els.trackStatus.style.color = data.track_active ? "#ff3333" : "#ffffff";
+        const trkText = data.status === "TRACKING" ? "TRK ACT" : "TRK STBY";
+        ctx.fillStyle = data.track_active ? '#ff3333' : '#ffffff';
+        ctx.fillText(trkText, 30, y);
+        y += 30;
 
-        els.stabStatus.innerText = data.stab_active ? "DSTAB ACT" : "DSTAB STBY";
-        els.stabStatus.style.color = data.stab_active ? "#ff3333" : "#ffffff";
+        // Stab Status
+        const stabText = data.stab_active ? "DSTAB ACT" : "DSTAB STBY";
+        ctx.fillStyle = data.stab_active ? '#ff3333' : '#e0e0e0';
+        ctx.fillText(stabText, 30, y);
 
-        // Buttons
+        // Top Right (Readouts)
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = '#e0e0e0';
+        y = 30;
+
+        const azVal = data.pan !== undefined ? data.pan.toFixed(0).padStart(3, '0') : '---';
+        const elVal = data.tilt !== undefined ? (data.tilt > 0 ? '+' : '') + data.tilt.toFixed(0) : '---';
+        const zmVal = data.zoom ? data.zoom.toFixed(1) : '---';
+
+        ctx.fillText(`AZ: ${azVal}`, els.canvas.width - 40, y); y += 30;
+        ctx.fillText(`EL: ${elVal}`, els.canvas.width - 40, y); y += 30;
+        ctx.fillText(`ZM: ${zmVal}X`, els.canvas.width - 40, y);
+
+        // --- Gauges ---
+        drawGauges(data);
+    }
+
+    function drawGauges(data) {
+        // Bottom Center
+        const cx = els.canvas.width / 2;
+        const cy = els.canvas.height - 60; // 30 (margin) + 30 (half gauge height assumed)
+
+        // Settings
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
+        // 1. Tilt Gauge (Left of center)
+        const tiltCx = cx - 70;
+        const tiltCy = els.canvas.height - 80;
+        const r = 35;
+
+        // Arc
+        // Start roughly 200 deg to 160 deg? Previous SVG logic was specific.
+        // Let's draw arc on left side.
+        ctx.beginPath();
+        // 135 deg to 225 deg (Left side arc)
+        // 135 deg = 2.356 rad, 225 deg = 3.926 rad
+        ctx.arc(tiltCx, tiltCy, r, 2.356, 3.926);
+        ctx.stroke();
+
+        // Center Tick (Left/180)
+        ctx.beginPath();
+        ctx.moveTo(tiltCx - r, tiltCy);
+        ctx.lineTo(tiltCx - r + 10, tiltCy);
+        ctx.stroke();
+
+        // Needle
+        // Map tilt -60..+60 to angle?
+        // Let's assume tilt is passed as degrees.
+        // 0 deg = Left (180). +60 = Up-ish? -60 = Down-ish.
+        // SVG Coord is Y-down.
+        // 0 deg tilt = 180 deg angle.
+        // +tilt (Up) -> 220 deg? (Move CCW on screen).
+        // -tilt (Down) -> 140 deg?
+        let tiltDeg = data.tilt || 0;
+        // Clamp visually
+        tiltDeg = Math.max(-60, Math.min(60, tiltDeg));
+        const tiltAngleRad = (180 - tiltDeg) * (Math.PI / 180); // In HTML5 Canvas, 0 is East, 90 South. 
+        // 180 is West. Up is 270 (-90).
+        // If we want +tilt to go "Up" (towards 270), we subtract. 
+
+        const tx = tiltCx + r * Math.cos(tiltAngleRad);
+        const ty = tiltCy + r * Math.sin(tiltAngleRad);
+        ctx.beginPath();
+        ctx.moveTo(tiltCx, tiltCy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+
+        // 2. Pan Gauge (Center? No, Left group in SVG was Tilt/Pan)
+        // Let's put Pan to the right of Tilt.
+        const panCx = cx + 70;
+        const panCy = tiltCy;
+
+        // Full Circle
+        ctx.beginPath();
+        ctx.arc(panCx, panCy, r, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // North Tick
+        ctx.beginPath();
+        ctx.moveTo(panCx, panCy - r);
+        ctx.lineTo(panCx, panCy - r + 10);
+        ctx.stroke();
+
+        // Needle
+        let panDeg = data.pan || 0;
+        // 0 is North? usually. 
+        // Standard angle: 0 East. -90 North. 
+        // If pan is 0->North. 90->East.
+        // Canvas angle = pan - 90.
+        const panRad = (panDeg - 90) * (Math.PI / 180);
+        const px = panCx + r * Math.cos(panRad);
+        const py = panCy + r * Math.sin(panRad);
+        ctx.beginPath();
+        ctx.moveTo(panCx, panCy);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+
+        // 3. Zoom Gauge (Bar below)
+        const zoomW = 290;
+        const zoomY = els.canvas.height - 30;
+        const zoomX = cx - zoomW / 2;
+
+        // Line
+        ctx.beginPath();
+        ctx.moveTo(zoomX, zoomY);
+        ctx.lineTo(zoomX + zoomW, zoomY);
+        ctx.stroke();
+
+        // Labels
+        ctx.font = 'bold 20px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText('W', zoomX - 10, zoomY + 7); // +7 for vertical align approx
+        ctx.textAlign = 'left';
+        ctx.fillText('N', zoomX + zoomW + 10, zoomY + 7);
+
+        // Marker
+        let zoom = data.zoom || 1.0;
+        // 1.0 to 20.0 (or max)
+        const minZ = 1.0;
+        const maxZ = 20.0; // from config
+        const pct = Math.max(0, Math.min(1, (zoom - minZ) / (maxZ - minZ)));
+        const markerX = zoomX + pct * zoomW;
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(markerX - 5, zoomY);
+        ctx.lineTo(markerX + 5, zoomY);
+        ctx.lineTo(markerX, zoomY - 10);
+        ctx.fill();
+    }
+
+    // --- Recorder Logic ---
+    // --- Recorder Logic ---
+    function startRecording() {
+        if (isRecording) return;
+
+        console.log("Starting Recording...");
+        const stream = els.canvas.captureStream(30); // 30 FPS
+
+        // Since Chrome downloads 'mp4' as webm anyway if we force it, and the user
+        // requested to remove mp4 functionality, we revert to standard webm.
+        // We can try VP9 for better quality, or default.
+
+        let options = { mimeType: 'video/webm; codecs=vp9' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/webm' };
+        }
+
+        try {
+            mediaRecorder = new MediaRecorder(stream, options);
+        } catch (e) {
+            console.warn("VP9 not supported, trying default.");
+            mediaRecorder = new MediaRecorder(stream);
+        }
+
+        recordedChunks = [];
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const filename = `skywatch_rec_${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+            console.log("Recording Saved");
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+
+        // Start Render Loop for Canvas (Video + OSD)
+        renderLoop();
+
+        // Update UI
+        els.btnRec.innerText = "STOP RECORDING (`)"
+        els.btnRec.classList.add('active');
+    }
+
+    function stopRecording() {
+        if (!isRecording) return;
+        isRecording = false; // Stops the render loop
+        mediaRecorder.stop();
+
+        // Clear canvas or return to transparent OSD only?
+        // If we stop drawing video, the canvas becomes transparent (if we clear it), revealing the <img> behind.
+        // Yes, `drawOSD` clears rect.
+        // So we revert to just drawing OSD on transparent canvas, allowing <img> to show.
+
+        els.btnRec.innerText = "START RECORDING (`)"
+        els.btnRec.classList.remove('active');
+    }
+
+    // Render loop for Recording (Composites Video + OSD)
+    function renderLoop() {
+        if (!isRecording) return;
+
+        // 1. Draw Video Frame
+        // Note: els.video is an HTMLImageElement with MJPEG source. 
+        // Use 'img' source for drawImage.
+        try {
+            ctx.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
+        } catch (e) {
+            // Video might not be ready
+        }
+
+        // 2. Draw OSD (Reuse function, but we need the latest 'data')
+        // We only have 'data' inside socket/SSE events.
+        // We need to cache latest data.
+        if (latestOSDData) {
+            // drawOSD clears rect... waiting.
+            // drawOSD calls clearRect. We must modify drawOSD to NOT clear if recording?
+            // Or just draw OSD manually here?
+            // Modification: drawOSD will only clear if NOT recording.
+            drawOSD(latestOSDData, true); // true = skipClear
+        }
+
+        requestAnimationFrame(renderLoop);
+    }
+
+    let latestOSDData = null; // Cache
+
+    function updateUI(data) {
+        latestOSDData = data;
+
+        // Buttons Update
         els.btnTrack.classList.toggle('active', data.track_active);
         els.btnTrack.innerText = data.track_active ? "STOP AUTO TRACK (SPACE)" : "START AUTO TRACK (SPACE)";
 
         els.btnStab.classList.toggle('active', data.stab_active);
         els.btnStab.innerText = data.stab_active ? "STOP DIGITAL STAB (Z)" : "START DIGITAL STAB (Z)";
 
-        els.btnRec.classList.toggle('active', data.recording);
-        els.btnRec.innerText = data.recording ? "STOP RECORDING (`)" : "START RECORDING (`)";
-
-        // Gauges (Text)
-        els.az.innerText = `AZ: ${data.pan !== undefined ? data.pan.toFixed(0).padStart(3, '0') : '---'}`;
-        els.el.innerText = `EL: ${data.tilt !== undefined ? (data.tilt > 0 ? '+' : '') + data.tilt.toFixed(0) : '---'}`;
-        els.zoom.innerText = `ZM: ${data.zoom ? data.zoom.toFixed(1) : '---'}X`;
-
-        // SVG Gauges Logic
-        if (data.pan !== undefined) {
-            const panDeg = data.pan;
-            els.needlePan.setAttribute('transform', `rotate(${panDeg}, 50, 50)`);
-        }
-
-        if (data.tilt !== undefined) {
-            // Positive scale for pitch up
-            const tiltDeg = data.tilt;
-            els.needleTilt.setAttribute('transform', `rotate(${tiltDeg}, 50, 50)`);
-        }
-
-        if (data.zoom !== undefined) {
-            const minZ = 1.0;
-            const maxZ = 20.0;
-            const pct = Math.max(0, Math.min(1, (data.zoom - minZ) / (maxZ - minZ)));
-            const width = 290;
-            const x = pct * width;
-            els.needleZoom.setAttribute('transform', `translate(${x}, 0)`);
-        }
-
-        // Update Inputs only if not focused
+        // Inputs
         if (document.activeElement !== els.inP) els.inP.value = data.kp;
         if (document.activeElement !== els.inI) els.inI.value = data.ki;
         if (document.activeElement !== els.inD) els.inD.value = data.kd;
@@ -114,6 +360,11 @@ document.addEventListener('DOMContentLoaded', () => {
             els.valSpeed.innerText = data.speed_limit;
         }
     }
+
+    // Modify drawOSD to support 'skipClear'
+    const originalDrawOSD = drawOSD;
+    // Overwriting definition above for simplicity in replace_block...
+    // I will rewrite the drawOSD function in the replacement block to handle 'skipClear'
 
     // --- Inputs ---
 
@@ -132,7 +383,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (key === 'z') {
             api({ action: 'toggle_stab' });
         } else if (key === '`') {
-            api({ action: 'toggle_record' });
+            if (isRecording) stopRecording();
+            else startRecording();
         } else if (key === 'q') {
             adjustSpeed(-0.5);
         } else if (key === 'e') {
@@ -145,10 +397,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('keyup', (e) => {
         const key = e.key.toLowerCase();
         delete keysPressed[key];
-
-        if (['w', 'a', 's', 'd', 'r', 'f'].includes(key)) {
-            // If no movement keys left, loop will send 0
-        }
     });
 
     function startManualLoop() {
@@ -156,10 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
         manualInterval = setInterval(() => {
             // Check keys
             let pan = 0, tilt = 0, zoom = 0;
-            const spd = 50; // Manual Speed unit? Core expects something? Core uses config.MANUAL_SPEED
-            // Actually core takes integer pan/tilt speeds. 
-            // We should use a fixed speed here or read from config via API?
-            // For now hardcode 'Manual Speed' as roughly 10-20?
             const manual_speed = 15;
             const zoom_speed = 3;
 
@@ -175,7 +419,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Stop loop if keys released
                 clearInterval(manualInterval);
                 manualInterval = null;
-                // Send one final zero command
             }
 
             // Send
@@ -193,7 +436,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // UI Listeners
     els.btnTrack.onclick = () => api({ action: 'toggle_track' });
     els.btnStab.onclick = () => api({ action: 'toggle_stab' });
-    els.btnRec.onclick = () => api({ action: 'toggle_record' });
+    els.btnRec.onclick = () => {
+        if (isRecording) stopRecording();
+        else startRecording();
+    };
 
     els.rangeSpeed.oninput = (e) => els.valSpeed.innerText = e.target.value;
     els.rangeSpeed.onchange = (e) => api({ action: 'set_speed', speed: parseFloat(e.target.value) });
@@ -221,5 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
             delete keysPressed[key];
         });
     });
+
+
 
 });
