@@ -863,36 +863,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Default Values
         let flight = '---';
-        let reg = '---'; // Add Reg
+        let reg = '---';
+        let type = '---'; // Add ICAO Type
         let dist = '---';
         let alt = '---';
         let speed = '---';
         let bearing = '---';
-        let elev = '---';
 
         if (bestTarget) {
             flight = bestTarget.flight || 'N/A';
             reg = bestTarget.reg || '---';
+            type = bestTarget.type || '---';
             dist = bestTarget.dist_nm.toFixed(1);
             alt = bestTarget.alt;
             speed = bestTarget.speed.toFixed(0);
             bearing = bestTarget.bearing.toFixed(0);
-
-            // Calculate Elevation Look Angle
-            const altVal = parseInt(bestTarget.alt);
-            if (!isNaN(altVal) && typeof CONFIG !== 'undefined' && CONFIG.CAMERA_HEIGHT_FT !== undefined) {
-                const altDiffFt = altVal - CONFIG.CAMERA_HEIGHT_FT; // ft
-                const distFt = bestTarget.dist_nm * 6076;
-
-                if (distFt > 0) {
-                    const elevRad = Math.atan2(altDiffFt, distFt);
-                    elev = (elevRad * (180 / Math.PI)).toFixed(1);
-                } else {
-                    elev = "0.0";
-                }
-            } else {
-                elev = "NaN";
-            }
         }
 
         aircraftInfoDiv.innerHTML = `
@@ -905,6 +890,10 @@ document.addEventListener('DOMContentLoaded', () => {
                  <div class="dash-item">
                     <span class="dash-label">REG</span>
                     <span class="dash-value">${reg}</span>
+                </div>
+                 <div class="dash-item">
+                    <span class="dash-label">ICAO</span>
+                    <span class="dash-value">${type}</span>
                 </div>
                 <div class="dash-item">
                     <span class="dash-label">RANGE</span>
@@ -921,10 +910,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="dash-item">
                     <span class="dash-label">BEARING</span>
                     <span class="dash-value">${bearing}°</span>
-                </div>
-                <div class="dash-item">
-                    <span class="dash-label">ELEVATION</span>
-                    <span class="dash-value">${elev}°</span>
                 </div>
             </div>
         `;

@@ -75,6 +75,7 @@ class ADSBClient:
                         'hex': ac.get('hex'),
                         'flight': ac.get('flight', '').strip(),
                         'reg': reg,
+                        'type': ac.get('t') or ac.get('type') or '---',
                         'lat': lat,
                         'lon': lon,
                         'alt': alt,
