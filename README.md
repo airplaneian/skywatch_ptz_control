@@ -82,3 +82,7 @@ If the camera oscillates or lags:
 -   **P (Proportional)**: Increase if valid targets are escaping the frame. Decrease if the camera overshoots.
 -   **I (Integral)**: Increase to reduce steady-state error (lag behind the target).
 -   **D (Derivative)**: Increase to dampen movement and reduce oscillation.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
