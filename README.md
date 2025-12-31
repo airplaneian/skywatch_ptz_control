@@ -1,63 +1,73 @@
 # SkyWatch PTZ Control
 
-SkyWatch is a specialized web-based control application for PTZ (Pan-Tilt-Zoom) security cameras, optimized for tracking aircraft. It combines real-time ADS-B radar data with computer vision tracking to provide a powerful tool for plane spotting and aerial monitoring.
+## Project Philosophy
+**SkyWatch** was created to explore the limits of an inexpensive, off-the-shelf PTZ (Pan-Tilt-Zoom) camera. While these cameras are typically designed for stationary subjects in conference rooms, this project aims to adapt one for tracking fast-moving targets (specifically aircraft) by implementing custom control software.
 
-## Features
+The goal is to improve tracking performance and provide better situational awareness than the standard camera software allows, applying principles like sensor fusion and control theory to consumer hardware.
 
-### 📡 ADS-B Integration
-- **Real-Time Radar Map**: Visualizes local air traffic relative to your camera's location.
-- **Target Selection**: Click on aircraft icons to view detailed telemetry (Altitude, Speed, Distance).
-- **Auto-Slew**: Automatically points the camera at selected ADS-B targets (Implementation dependent on calibration).
+## System Architecture
 
-### 🎯 Precision Tracking
-- **Computer Vision Tracking**: Click on any object in the video feed (or press SPACE to track the center) to lock on using a CSRT/Kalman Filter hybrid tracker.
-- **Digital Stabilization (DSTAB)**: A software-stabilized "Locked On" view that keeps the target centered even if the mechanical PTZ movement lags or jitters. Toggle with **`Z`**.
-- **Dynamic Speed Control**: Intelligent speed scaling prevents overshooting at high zoom levels.
+### 1. Hybrid Tracking Engine
+Tracking non-cooperative targets like aircraft against complex backgrounds is handled by combining two approaches:
+-   **Visual Tracking (CSRT)**: Uses the OpenCV CSRT tracker to maintain a visual lock on the object's texture.
+-   **State Estimation (Kalman Filter)**: A Kalman Filter is used to estimate the position and velocity of the aircraft. This helps smooth out noisy detection data and allows the system to predict the object's location during brief occlusions or tracking failures.
 
-### 🎥 Control & Recording
-- **Web Interface**: Low-latency MJPEG stream accessible from any browser.
-- **Video Recording**: Capture the main feed directly to your Downloads folder with a single click or keypress (**`\`** or **`\``**).
-- **Hybrid Controls**: Support for both keyboard shortcuts (WASD) and UI buttons.
+### 2. Mechanical Control Loop
+To address the latency and mechanical inertia inherent in these cameras, the visible error is processed through a custom control loop:
+-   **PID Controller**: Calculates the pan/tilt velocity needed to center the target based on current position error.
+-   **Feed Forward**: Uses the velocity estimate from the Kalman Filter to proactively move the camera, improving response time.
+-   **Dynamic Speed Scaling**: Automatically adjusts control sensitivity based on the zoom level, reducing the likelihood of overshooting at high magnification.
+
+### 3. Digital Stabilization
+Mechanical motors have step limits that can cause jitter at high zoom levels. To address this, **Digital Stabilization** can be enabled.
+-   **Virtual Gimbal**: The software crops the video feed (e.g., from 1080p to a smaller window) and adjusts this window's position frame-by-frame to keep the tracked target centered, smoothing out residual mechanical movement.
+
+### 4. Situational Awareness (ADS-B Integration)
+The system integrates with a local **ADS-B Receiver** (e.g., `dump1090`) to provide context.
+-   **Mini Map**: Visualizes local air traffic relative to the camera's azimuth.
+-   **Automatic Telemetry**: When an aircraft is centered in the view, the system correlates the camera's pointing angle with known aircraft positions to display available telemetry (Altitude, Speed, Tail Number). Note: This relies on the camera's position reporting and does not control the camera itself.
+
+---
 
 ## Installation
 
-1. **Prerequisites**: Python 3.9+ and pip.
-2. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Configuration**: 
-   - Rename/Edit `config.py` (if applicable) or modify the existing `config.py`.
-   - Set your **Camera IP**, **VISCA Port**, and **ADS-B Feed URL**.
-   - Update `CAMERA_LAT`, `CAMERA_LNG`, and `CAMERA_HEIGHT_FT` for accurate radar mapping.
+### Prerequisites
+-   Python 3.9+
+-   A VISCA-over-IP compatible PTZ Camera (Sony, PTZOptics, or generic clones)
+-   Local ADS-B Feeder (Optional, for telemetry)
 
-## Usage
+### Setup
+1.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+2.  **Configuration**: 
+    Edit `config.py` to match your hardware environment.
+    -   `CAMERA_IP`: The static IP of your PTZ camera.
+    -   `CAMERA_LAT`/`LON`/`HEIGHT`: Your physical location (critical for accurate ADS-B mapping).
+    -   `ADSB_URL`: The JSON endpoint of your local feeder (usually `http://<pi-ip>:8080/data/aircraft.json`).
+
+## Operation Guide
 
 Run the application:
 ```bash
-python app.py
-# or
 ./launch_skywatch.sh
 ```
 Access the interface at `http://localhost:5001`.
 
 ### Controls
 
-| Key | Action |
-| :--- | :--- |
-| **W / A / S / D** | Pan and Tilt Camera |
-| **R / F** | Zoom In / Out |
-| **SPACE** | **Toggle Tracking** (Locks on center reticle or clicked target) |
-| **Z** | **Toggle Digital Stabilization** (Centers tracking target in view) |
-| **`** (Backtick) | **Toggle Recording** |
-| **Q / E** | Decrease / Increase Max Speed Limit |
-| **1 - 6** | Tune PID Values (P: 1/2, I: 3/4, D: 5/6) |
+| Key | Function | Description |
+| :--- | :--- | :--- |
+| **WASD** | **Manual Slew** | Manually steer the camera. |
+| **R / F** | **Zoom** | Zoom In / Zoom Out. |
+| **SPACE** | **Engage Track** | Locks onto the object in the crosshairs. Press again to disengage. |
+| **Z** | **Stabilizer** | Toggles Digital Stabilization. |
+| **`** | **Record** | Saves the current feed to disk. |
+| **Q / E** | **Speed Limiter** | Adjusts the maximum slew rate. |
 
-### On-Screen Display (OSD)
-- **Top Left**: System Status, Date/Time (UTC & Local).
-- **Bottom**: PID values, Max Speed, and Status Indicators.
-- **Gauges**: Visual indicators for Pan Azimuth, Tilt Elevation, and Zoom Level.
-
-## Versioning
-Current Version: **v0.8.0 Alpha**
-defined in `config.py`.
+### Tuning
+If the camera oscillates or lags:
+-   **P (Proportional)**: Increase if valid targets are escaping the frame. Decrease if the camera overshoots.
+-   **I (Integral)**: Increase to reduce steady-state error (lag behind the target).
+-   **D (Derivative)**: Increase to dampen movement and reduce oscillation.
