@@ -58,6 +58,8 @@ body {
     background: #000;
     border-right: 2px solid var(--border-color);
     margin: 0;
+    grid-column: 1;
+    grid-row: 1;
 }
 
 #video-stream {
@@ -75,11 +77,13 @@ body {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    /* Ensure canvas resolution matches display or is handled by JS */
 }
 
 /* Sidebar */
 .control-sidebar {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    /* Span Video + Radar rows */
     background: var(--panel-bg);
     color: var(--text-sidebar);
     padding: 20px;
@@ -254,6 +258,7 @@ input[type="range"] {
 .radar-section {
     grid-column: 1;
     /* Below video */
+    grid-row: 2;
     background: var(--panel-bg);
     /* Match sidebar gray */
     border-top: 2px solid var(--border-light);

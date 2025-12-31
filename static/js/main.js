@@ -167,9 +167,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let tiltDeg = data.tilt || 0;
         // Clamp visually
         tiltDeg = Math.max(-60, Math.min(60, tiltDeg));
-        const tiltAngleRad = (180 - tiltDeg) * (Math.PI / 180); // In HTML5 Canvas, 0 is East, 90 South. 
         // 180 is West. Up is 270 (-90).
         // If we want +tilt to go "Up" (towards 270), we subtract. 
+        // User requested reversal: +tilt should go "Down" (towards 90) or vice versa.
+        // Reversing the sign.
+        const tiltAngleRad = (180 + tiltDeg) * (Math.PI / 180); // In HTML5 Canvas, 0 is East, 90 South. 
 
         const tx = tiltCx + r * Math.cos(tiltAngleRad);
         const ty = tiltCy + r * Math.sin(tiltAngleRad);

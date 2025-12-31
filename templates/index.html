@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SkyWatch PTZ Control</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css?v=4') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=8">
 </head>
 
 <body>
@@ -24,73 +24,72 @@
                 <canvas id="radar-canvas" width="220" height="220"></canvas>
             </div>
             <div class="aircraft-info-container" id="aircraft-info">
-            </div>            <div class="radar-controls">
+            </div>
+            <div class="radar-controls">
                 <label>NORTH OFFSET</label>
                 <input type="number" id="input-offset" value="0" step="1">
             </div>
         </div>
-    </div>
 
-    <!-- Control Sidebar -->
-    <div class="control-sidebar">
+        <!-- Control Sidebar -->
+        <div class="control-sidebar">
 
-        <div class="control-group">
-            <label>TRACKING</label>
-            <button id="btn-track" class="btn-primary">START AUTO TRACK (SPACE)</button>
-        </div>
+            <div class="control-group">
+                <button id="btn-track" class="btn-primary">START AUTO TRACK (SPACE)</button>
+            </div>
 
-        <div class="control-group">
-            <label>STABILIZATION</label>
-            <button id="btn-stab" class="btn-toggle">START DIGITAL STAB (Z)</button>
-        </div>
+            <div class="control-group">
+                <label>STABILIZATION</label>
+                <button id="btn-stab" class="btn-toggle">START DIGITAL STAB (Z)</button>
+            </div>
 
-        <div class="control-group">
-            <label>RECORDING</label>
-            <button id="btn-rec" class="btn-toggle">START RECORDING (`)</button>
-        </div>
+            <div class="control-group">
+                <label>RECORDING</label>
+                <button id="btn-rec" class="btn-toggle">START RECORDING (`)</button>
+            </div>
 
-        <div class="control-group">
-            <label>SPEED LIMIT (Q/E)</label>
-            <input type="range" id="range-speed" min="0.5" max="24" step="0.5" value="5">
-            <span id="val-speed">5.0</span>
-        </div>
+            <div class="control-group">
+                <label>SPEED LIMIT (Q/E)</label>
+                <input type="range" id="range-speed" min="0.5" max="24" step="0.5" value="5">
+                <span id="val-speed">5.0</span>
+            </div>
 
-        <div class="control-group">
-            <label>PID TUNING</label>
-            <div class="pid-inputs">
-                <div class="input-wrap">
-                    <span>P (1/2)</span>
-                    <input type="number" id="input-p" step="0.01" min="0">
+            <div class="control-group">
+                <label>PID TUNING</label>
+                <div class="pid-inputs">
+                    <div class="input-wrap">
+                        <span>P (1/2)</span>
+                        <input type="number" id="input-p" step="0.01" min="0">
+                    </div>
+                    <div class="input-wrap">
+                        <span>I (3/4)</span>
+                        <input type="number" id="input-i" step="0.01" min="0">
+                    </div>
+                    <div class="input-wrap">
+                        <span>D (5/6)</span>
+                        <input type="number" id="input-d" step="0.01" min="0">
+                    </div>
+                    <button id="btn-update-pid" class="btn-action">UPDATE</button>
                 </div>
-                <div class="input-wrap">
-                    <span>I (3/4)</span>
-                    <input type="number" id="input-i" step="0.01" min="0">
+            </div>
+
+            <div class="control-group manual-controls">
+                <label>MANUAL JOG</label>
+                <div class="dpad">
+                    <button class="d-btn up" data-key="w">▲</button>
+                    <button class="d-btn left" data-key="a">◀</button>
+                    <button class="d-btn center" data-key="space">●</button>
+                    <button class="d-btn right" data-key="d">▶</button>
+                    <button class="d-btn down" data-key="s">▼</button>
                 </div>
-                <div class="input-wrap">
-                    <span>D (5/6)</span>
-                    <input type="number" id="input-d" step="0.01" min="0">
+                <div class="zoom-btns">
+                    <button class="z-btn" data-key="r">ZOOM IN</button>
+                    <button class="z-btn" data-key="f">ZOOM OUT</button>
                 </div>
-                <button id="btn-update-pid" class="btn-action">UPDATE</button>
             </div>
         </div>
-
-        <div class="control-group manual-controls">
-            <label>MANUAL JOG</label>
-            <div class="dpad">
-                <button class="d-btn up" data-key="w">▲</button>
-                <button class="d-btn left" data-key="a">◀</button>
-                <button class="d-btn center" data-key="space">●</button>
-                <button class="d-btn right" data-key="d">▶</button>
-                <button class="d-btn down" data-key="s">▼</button>
-            </div>
-            <div class="zoom-btns">
-                <button class="z-btn" data-key="r">ZOOM IN</button>
-                <button class="z-btn" data-key="f">ZOOM OUT</button>
-            </div>
-        </div>
     </div>
-    </div>
-    <script src="{{ url_for('static', filename='js/main.js?v=4') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=7"></script>
 </body>
 
 </html>
