@@ -32,7 +32,7 @@ RTSP_PORT = get_cfg('camera.rtsp_port', 554)
 VISCA_PORT = get_cfg('camera.visca_port', 1259)
 CAMERA_WIDTH = 1920
 CAMERA_HEIGHT = 1080
-APP_VERSION = "0.9.0 Beta"
+APP_VERSION = "1.0.0"
 
 # RTSP Stream URL
 # Allow full override from config, else construct
