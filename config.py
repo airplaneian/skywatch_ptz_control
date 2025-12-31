@@ -138,3 +138,14 @@ PAN_MIN_DEG = -170
 PAN_MAX_DEG = 170
 TILT_MIN_DEG = -30 # Down
 TILT_MAX_DEG = 90  # Up
+
+# Location & Radar Settings
+CAMERA_LAT = 37.818728
+CAMERA_LNG = -122.268427
+CAMERA_HEIGHT_FT = 60
+FOV_RIGHT = 285 # degrees true heading (approx limit)
+FOV_LEFT = 198  # degrees true heading (approx limit)
+MAX_RANGE_NM = 10
+
+# ADS-B Feed
+ADSB_URL = "http://adsb-feeder.local:8080/data/aircraft.json"

@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SkyWatch PTZ Control</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css?v=4') }}">
 </head>
 
 <body>
@@ -17,6 +16,18 @@
 
             <!-- Video Overlay (Canvas) -->
             <canvas id="osd-canvas" width="1920" height="1080"></canvas>
+        </div>
+
+        <!-- Radar Section -->
+        <div class="radar-section">
+            <div class="radar-container">
+                <canvas id="radar-canvas" width="220" height="220"></canvas>
+            </div>
+            <div class="aircraft-info-container" id="aircraft-info">
+            </div>            <div class="radar-controls">
+                <label>NORTH OFFSET</label>
+                <input type="number" id="input-offset" value="0" step="1">
+            </div>
         </div>
     </div>
 
@@ -79,7 +90,7 @@
         </div>
     </div>
     </div>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js?v=4') }}"></script>
 </body>
 
 </html>

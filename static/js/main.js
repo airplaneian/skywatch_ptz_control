@@ -470,4 +470,274 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+    // --- Radar Controller ---
+    const radarCanvas = document.getElementById('radar-canvas');
+    const radarCtx = radarCanvas.getContext('2d');
+    const aircraftInfoDiv = document.getElementById('aircraft-info');
+    const inputOffset = document.getElementById('input-offset');
+
+    const CONFIG = {
+        CAMERA_LAT: 37.818728,
+        CAMERA_LNG: -122.268427,
+        MAX_RANGE_NM: 10,
+        FOV_DEG: 5.0, // Default approx, acts as beam width for "locked" check if zoom unknown
+        // Note: Real FOV depends on Zoom. We have data.zoom.
+        // Approx: Wide=60deg, Tele=2deg? 
+        // Let's assume ZOOM 1.0 = 60 deg, ZOOM 20.0 = 3 deg.
+        MIN_FOV: 3.0,
+        MAX_FOV: 60.0,
+        MAX_ZOOM: 20.0
+    };
+
+    let aircraftData = [];
+    let northOffset = parseInt(localStorage.getItem('skywatch_north_offset') || '0');
+    inputOffset.value = northOffset;
+
+    inputOffset.addEventListener('change', (e) => {
+        northOffset = parseInt(e.target.value);
+        localStorage.setItem('skywatch_north_offset', northOffset);
+    });
+
+    // Poll Aircraft Data
+    setInterval(async () => {
+        try {
+            const res = await fetch('/api/aircraft');
+            if (res.ok) {
+                aircraftData = await res.json();
+                drawRadar();
+                updateInfoBox();
+            }
+        } catch (e) {
+            console.warn("Aircraft Poll Error", e);
+        }
+    }, 1000);
+
+    // Radar Draw Loop (also triggered by Telemetry to update Camera Wedge smoothly)
+    // We'll hook into updateUI or just rely on the 1Hz aircraft poll + Animation Frame?
+    // Better to redraw radar whenever Telemetry updates (for smooth Wedge) OR 1Hz?
+    // Let's add drawRadar() to updateUI() as well, so the wedge moves smoothly.
+
+    function drawRadar() {
+        const w = radarCanvas.width;
+        const h = radarCanvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const pxPerNm = (w / 2) / (CONFIG.MAX_RANGE_NM * 1.1); // Leave some margin
+
+        // Clear
+        radarCtx.fillStyle = '#000';
+        radarCtx.fillRect(0, 0, w, h);
+
+        // Grid (Rings)
+        radarCtx.strokeStyle = '#333';
+        radarCtx.lineWidth = 2; // Thicker grid
+
+        [2, 4, 6, 8, 10].forEach(nm => {
+            radarCtx.beginPath();
+            radarCtx.arc(cx, cy, nm * pxPerNm, 0, 2 * Math.PI);
+            radarCtx.stroke();
+            // Label
+            radarCtx.fillStyle = '#666'; // Brighter text
+            radarCtx.font = 'bold 12px monospace'; // Larger text
+            radarCtx.fillText(`${nm}NM`, cx + 5, cy - (nm * pxPerNm) + 12);
+        });
+
+        // Crosshairs
+        radarCtx.beginPath();
+        radarCtx.moveTo(0, cy);
+        radarCtx.lineTo(w, cy);
+        radarCtx.moveTo(cx, 0);
+        radarCtx.lineTo(cx, h);
+        radarCtx.stroke();
+
+        // --- Camera Wedge ---
+        // Need current Pan/Heading
+        if (latestOSDData) {
+            const panRaw = latestOSDData.pan || 0;
+            // North Up Map.
+            // Camera Heading = (panRaw + northOffset) % 360
+            let camHeading = (panRaw + northOffset) % 360;
+            if (camHeading < 0) camHeading += 360;
+
+            // Calculate FOV
+            const zoom = latestOSDData.zoom || 1.0;
+            // Linear interp for FOV? 
+            // 1.0 -> 60, 20.0 -> 3
+            // fov = 60 - ((zoom - 1) / (19)) * (57)
+            const fov = Math.max(CONFIG.MIN_FOV, CONFIG.MAX_FOV - ((zoom - 1.0) / (CONFIG.MAX_ZOOM - 1.0)) * (CONFIG.MAX_FOV - CONFIG.MIN_FOV));
+
+            const halfFovRad = (fov / 2) * (Math.PI / 180);
+
+            // Canvas Angle: 0 is Right (East), 90 Down (South), -90 Up (North).
+            // We want North Up.
+            // So North (0 deg heading) should correspond to -90 deg canvas angle.
+            // CanvasAngle = Heading - 90.
+            const wedgeCenterRad = (camHeading - 90) * (Math.PI / 180);
+
+            radarCtx.fillStyle = 'rgba(255, 255, 255, 0.25)'; // More visible wedge
+            radarCtx.beginPath();
+            radarCtx.moveTo(cx, cy);
+            radarCtx.arc(cx, cy, w, wedgeCenterRad - halfFovRad, wedgeCenterRad + halfFovRad);
+            radarCtx.moveTo(cx, cy);
+            radarCtx.fill();
+
+            // Camera Line
+            radarCtx.lineWidth = 3;
+            radarCtx.strokeStyle = '#33ff33'; // Bright Green Heading Line
+            radarCtx.beginPath();
+            radarCtx.moveTo(cx, cy);
+            radarCtx.lineTo(cx + w * Math.cos(wedgeCenterRad), cy + w * Math.sin(wedgeCenterRad));
+            radarCtx.stroke();
+            radarCtx.lineWidth = 2; // Reset
+        }
+
+        // --- Aircraft ---
+        aircraftData.forEach(ac => {
+            // Plot logic
+            // ac.dist_nm, ac.bearing (True bearing from cam)
+            // North Up plot: 
+            // Bearing 0 -> Up (canvas -90)
+            // Angle = Bearing - 90
+
+            const r = ac.dist_nm * pxPerNm;
+            if (r > w / 2) return; // Out of bounds
+
+            const angleRad = (ac.bearing - 90) * (Math.PI / 180);
+            const x = cx + r * Math.cos(angleRad);
+            const y = cy + r * Math.sin(angleRad);
+
+            // Draw Blip
+            // Check if "In View" (Target)
+            const isTarget = checkInView(ac);
+
+            radarCtx.fillStyle = isTarget ? '#ffff00' : '#00ffff';
+
+            // Diamond shape for target, Dot for others
+            if (isTarget) {
+                const s = 10; // Size
+                radarCtx.beginPath();
+                radarCtx.moveTo(x, y - s);
+                radarCtx.lineTo(x + s, y);
+                radarCtx.lineTo(x, y + s);
+                radarCtx.lineTo(x - s, y);
+                radarCtx.fill();
+            } else {
+                radarCtx.beginPath();
+                radarCtx.arc(x, y, 5, 0, 2 * Math.PI); // Larger dot
+                radarCtx.fill();
+            }
+
+            // Label (Flight or Alt)
+            radarCtx.fillStyle = '#fff';
+            radarCtx.font = 'bold 14px monospace'; // Larger label
+            const label = ac.flight || (ac.alt + "ft");
+            radarCtx.fillText(label, x + 12, y + 4);
+        });
+    }
+
+    function checkInView(ac) {
+        if (!latestOSDData) return false;
+
+        const panRaw = latestOSDData.pan || 0;
+        let camHeading = (panRaw + northOffset) % 360;
+        if (camHeading < 0) camHeading += 360;
+
+        // Simplified: Only use Pan/Heading. Ignored Zoom/Tilt.
+        const SELECTION_FOV = 20; // 20 degrees fixed selection window
+
+        // Angle diff
+        let diff = Math.abs(ac.bearing - camHeading);
+        if (diff > 180) diff = 360 - diff;
+
+        return diff < (SELECTION_FOV / 2);
+    }
+
+    function updateInfoBox() {
+        // Find best target (closest to center of view, valid range)
+        // For now, just pick the first one that returns true for checkInView
+        // Or closest to center line.
+
+        let bestTarget = null;
+        let minDiff = 999;
+
+        if (latestOSDData) {
+            const panRaw = latestOSDData.pan || 0;
+            let camHeading = (panRaw + northOffset) % 360;
+            if (camHeading < 0) camHeading += 360;
+
+            aircraftData.forEach(ac => {
+                if (checkInView(ac)) {
+                    let diff = Math.abs(ac.bearing - camHeading);
+                    if (diff > 180) diff = 360 - diff;
+
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        bestTarget = ac;
+                    }
+                }
+            });
+        }
+
+        // Default Values
+        let flight = '---';
+        let dist = '---';
+        let alt = '---';
+        let speed = '---';
+        let bearing = '---';
+        let elev = '---';
+
+        if (bestTarget) {
+            flight = bestTarget.flight || 'N/A';
+            dist = bestTarget.dist_nm.toFixed(1);
+            alt = bestTarget.alt;
+            speed = bestTarget.speed.toFixed(0);
+            bearing = bestTarget.bearing.toFixed(0);
+
+            // Calculate Elevation Look Angle
+            const altDiffFt = bestTarget.alt - CONFIG.CAMERA_HEIGHT_FT; // ft
+            const distFt = bestTarget.dist_nm * 6076;
+            const elevRad = Math.atan2(altDiffFt, distFt);
+            elev = (elevRad * (180 / Math.PI)).toFixed(1);
+        }
+
+        aircraftInfoDiv.innerHTML = `
+            <div class="info-header">AIRCRAFT INFO</div>
+            <div class="info-dashboard">
+                <div class="dash-item">
+                    <span class="dash-label">FLIGHT</span>
+                    <span class="dash-value highlight">${flight}</span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">RANGE</span>
+                    <span class="dash-value">${dist} <span style="font-size:0.5em">NM</span></span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">ALTITUDE</span>
+                    <span class="dash-value">${alt} <span style="font-size:0.5em">FT</span></span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">SPEED</span>
+                    <span class="dash-value">${speed} <span style="font-size:0.5em">KTS</span></span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">BEARING</span>
+                    <span class="dash-value">${bearing}°</span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">ELEVATION</span>
+                    <span class="dash-value">${elev}°</span>
+                </div>
+            </div>
+        `;
+    }
+
+
+    // Radar Render Loop (Animation Frame)
+    function radarLoop() {
+        drawRadar();
+        requestAnimationFrame(radarLoop);
+    }
+    radarLoop();
+
 });

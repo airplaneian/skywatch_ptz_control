@@ -9,6 +9,8 @@ app = Flask(__name__)
 
 # Global Core Instance
 core = SkyWatchCore()
+from adsb_client import ADSBClient
+adsb = ADSBClient()
 
 def generate_mjpeg():
     """Generator for MJPEG stream."""
@@ -52,6 +54,10 @@ def telemetry_feed():
     return Response(stream_with_context(generate_telemetry()),
                     mimetype='text/event-stream')
 
+@app.route('/api/aircraft')
+def get_aircraft():
+    return jsonify(adsb.get_aircraft())
+
 @app.route('/api/control', methods=['POST'])
 def control():
     cmd = request.json
@@ -69,8 +75,6 @@ def control():
     elif action == 'toggle_stab':
         core.toggle_stabilization()
 
-
-        
     elif action == 'set_pid':
         p = float(cmd.get('p'))
         i = float(cmd.get('i'))
@@ -86,6 +90,7 @@ def control():
 def start_server():
     # Start Core
     core.start()
+    adsb.start()
     
     # Start Flask
     # Note: debug=False, threaded=True is default
@@ -98,3 +103,4 @@ if __name__ == '__main__':
         pass
     finally:
         core.stop()
+        adsb.stop()

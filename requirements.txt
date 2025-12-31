@@ -1,3 +1,4 @@
+requests
 opencv-contrib-python
 visca-over-ip
 numpy

@@ -249,3 +249,109 @@ input[type="range"] {
     gap: 10px;
     margin-top: 20px;
 }
+
+/* Radar Section */
+.radar-section {
+    grid-column: 1;
+    /* Below video */
+    background: var(--panel-bg);
+    /* Match sidebar gray */
+    border-top: 2px solid var(--border-light);
+    /* Keep top separator from video */
+    /* Removed right/bottom borders to merge with sidebar */
+    height: 240px;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    gap: 20px;
+    color: var(--text-sidebar);
+}
+
+.radar-container {
+    width: 220px;
+    height: 220px;
+    background: #000;
+    border: 2px solid var(--border-dark);
+    position: relative;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 10px #000;
+}
+
+#radar-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.aircraft-info-container {
+    flex: 1;
+    height: 100%;
+    background: transparent;
+    /* Removed border from container to be cleaner */
+    display: flex;
+    flex-direction: column;
+    padding: 0 10px;
+    /* Horizontal padding only */
+}
+
+.info-header {
+    background: transparent;
+    color: var(--text-sidebar);
+    padding-bottom: 5px;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: left;
+    text-transform: uppercase;
+    /* Removed border-bottom */
+    margin-bottom: 5px;
+}
+
+.info-dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    /* Wider tiles */
+    gap: 10px;
+    height: 100%;
+    align-content: start;
+}
+
+.dash-item {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 10px 5px;
+    border: 1px solid var(--border-dark);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    height: 100%;
+    /* Fill available height in grid row */
+    min-height: 80px;
+    /* Taller tiles */
+}
+
+.dash-label {
+    font-size: 11px;
+    font-weight: bold;
+    color: #555;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+.dash-value {
+    font-size: 28px;
+    /* Larger font */
+    font-weight: bold;
+    color: #000;
+    font-family: var(--font-mono);
+}
+
+.dash-value.highlight {
+    color: #cc0000;
+}
+
+.radar-controls {
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
