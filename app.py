@@ -4,6 +4,7 @@ import json
 import threading
 from skywatch_core import SkyWatchCore
 import cv2
+import config
 
 app = Flask(__name__)
 
@@ -42,7 +43,7 @@ def generate_telemetry():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', version=config.APP_VERSION, camera_height=config.CAMERA_HEIGHT_FT)
 
 @app.route('/video_feed')
 def video_feed():

@@ -53,6 +53,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Helper for OSD Text with Outline
+    function drawOutlinedText(str, x, y) {
+        ctx.strokeText(str, x, y);
+        ctx.fillText(str, x, y);
+    }
+
     // --- Canvas OSD Drawing ---
     function drawOSD(data, skipClear = false) {
         // Clear only if not compositing for recording
@@ -60,12 +66,15 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
         }
 
-        // Setup Font
+        // Setup Font & Outline Style
         ctx.font = '20px monospace';
-        ctx.shadowColor = 'rgba(0,0,0,1)';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#000000'; // Hard black outline
+        // Remove global shadow
+        ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
 
         const now = new Date();
         const dateStr = now.toLocaleDateString();
@@ -77,20 +86,20 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.textBaseline = 'top';
         ctx.textAlign = 'left';
 
-        let y = 30;
-        ctx.fillText('AIRPLANE IAN SYSTEMS 401', 30, y); y += 30;
-        ctx.fillText(dateStr, 30, y); y += 30;
-        ctx.fillText(timeUtc, 30, y); y += 30;
-        ctx.fillText(timeLcl, 30, y);
+        let y = 30; // Moved back up
+        drawOutlinedText('AIRPLANE IAN SYSTEMS 401', 30, y); y += 30;
+        drawOutlinedText(dateStr, 30, y); y += 30;
+        drawOutlinedText(timeUtc, 30, y); y += 30;
+        drawOutlinedText(timeLcl, 30, y);
 
         // Bottom Left
         y = els.canvas.height - 30;
         ctx.textBaseline = 'bottom';
-        ctx.fillText(`P=${data.kp.toFixed(2)} I=${data.ki.toFixed(2)} D=${data.kd.toFixed(2)}`, 30, y); y -= 30;
-        ctx.fillText(`MAX SPD ${data.speed_limit.toFixed(2)} (SET)`, 30, y); y -= 30;
-        ctx.fillText('EXP AUT', 30, y); y -= 30;
-        ctx.fillText('FOC MAN', 30, y); y -= 30;
-        ctx.fillText('HDEO', 30, y);
+        drawOutlinedText(`P=${data.kp.toFixed(2)} I=${data.ki.toFixed(2)} D=${data.kd.toFixed(2)}`, 30, y); y -= 30;
+        drawOutlinedText(`MAX SPD ${data.speed_limit.toFixed(2)} (SET)`, 30, y); y -= 30;
+        drawOutlinedText('EXP AUT', 30, y); y -= 30;
+        drawOutlinedText('FOC MAN', 30, y); y -= 30;
+        drawOutlinedText('HDEO', 30, y);
 
         // Left Center (Status)
         y = els.canvas.height / 2 - 15;
@@ -99,30 +108,201 @@ document.addEventListener('DOMContentLoaded', () => {
         // Track Status
         const trkText = data.status === "TRACKING" ? "TRK ACT" : "TRK STBY";
         ctx.fillStyle = data.track_active ? '#ff3333' : '#ffffff';
-        ctx.fillText(trkText, 30, y);
+        // Note: strokeStyle is black by default from above, but if we want red text, black outline works.
+        // If we wanted red outline, we'd change strokeStyle. Keeping black outline for contrast.
+        drawOutlinedText(trkText, 30, y);
         y += 30;
 
         // Stab Status
         const stabText = data.stab_active ? "DSTAB ACT" : "DSTAB STBY";
         ctx.fillStyle = data.stab_active ? '#ff3333' : '#e0e0e0';
-        ctx.fillText(stabText, 30, y);
+        drawOutlinedText(stabText, 30, y);
 
-        // Top Right (Readouts)
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'top';
-        ctx.fillStyle = '#e0e0e0';
-        y = 30;
+        // --- Heading Tape (Top) ---
+        drawHeadingTape(data);
 
-        const azVal = data.pan !== undefined ? data.pan.toFixed(0).padStart(3, '0') : '---';
-        const elVal = data.tilt !== undefined ? (data.tilt > 0 ? '+' : '') + data.tilt.toFixed(0) : '---';
-        const zmVal = data.zoom ? data.zoom.toFixed(1) : '---';
-
-        ctx.fillText(`AZ: ${azVal}`, els.canvas.width - 40, y); y += 30;
-        ctx.fillText(`EL: ${elVal}`, els.canvas.width - 40, y); y += 30;
-        ctx.fillText(`ZM: ${zmVal}X`, els.canvas.width - 40, y);
+        // --- North Arrow (Top Right) ---
+        drawNorthArrow(data);
 
         // --- Gauges ---
         drawGauges(data);
+    }
+
+    function drawHeadingTape(data) {
+        const panRaw = data.pan || 0;
+        let camHeading = (panRaw + northOffset) % 360;
+        if (camHeading < 0) camHeading += 360;
+
+        const w = els.canvas.width;
+        const cx = w / 2;
+        const cy = 30;
+        const fov = 60; // Tape always assumes nice wide FOV for readability or match zoom? 
+        // Usually tape is fixed width per degree for readability. 
+        // Let's say 10 pixels per degree? 
+        const pxPerDeg = 8;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(cx - 200, 0, 400, 50); // Clip area
+        ctx.clip(); // Optional, or just draw fading
+
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#fff'; // Ticks are white lines, no outline needed usually, or add black shadow?
+        // User asked for OSD text outline. Ticks are lines. Let's leave ticks as lines with maybe shadow?
+        // But we just disabled global shadow.
+        // Let's add simple shadow for ticks locally if needed, or black stroke borders for ticks?
+        // Ticks: Just White line.
+
+        // Reset styles for Ticks (Lines)
+        ctx.lineWidth = 2;
+        ctx.font = 'bold 16px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        // Draw Ticks
+        // Range: camHeading - 30 to camHeading + 30
+        const startH = Math.floor(camHeading - 40);
+        const endH = Math.ceil(camHeading + 40);
+
+        for (let h = startH; h <= endH; h++) {
+            // Norm H
+            let hdg = h;
+            // Normalized 0-360 for Display
+            let displayH = hdg % 360;
+            if (displayH < 0) displayH += 360;
+
+            const offsetDeg = h - camHeading;
+            const x = cx + offsetDeg * pxPerDeg;
+
+            // Major Tick (10 deg)
+            if (h % 10 === 0) {
+                ctx.strokeStyle = '#fff'; // Ensure white ticks
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x, 10);
+                ctx.lineTo(x, 25);
+                ctx.stroke();
+
+                // Text (Every 10 or 30?)
+                let label = displayH.toString();
+                if (displayH === 0) label = "N";
+                if (displayH === 90) label = "E";
+                if (displayH === 180) label = "S";
+                if (displayH === 270) label = "W";
+
+                // Draw label with outline
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                drawOutlinedText(label, x, 30);
+            } else if (h % 5 === 0) {
+                // Minor
+                ctx.strokeStyle = '#fff'; // Ensure white ticks
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x, 15);
+                ctx.lineTo(x, 25);
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+
+        // Center Triangle (Static)
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000'; // Outline for triangle too?
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, 35);
+        ctx.lineTo(cx - 10, 50);
+        ctx.lineTo(cx + 10, 50);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Value Box (Box Removed per request)
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px monospace';
+        ctx.textBaseline = 'top';
+        ctx.textAlign = 'center';
+
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#000';
+        drawOutlinedText(Math.round(camHeading).toString().padStart(3, '0'), cx, 55); // Moved to 55
+    }
+
+    function drawNorthArrow(data) {
+        const panRaw = data.pan || 0;
+        let camHeading = (panRaw + northOffset) % 360;
+        if (camHeading < 0) camHeading += 360;
+
+        // Arrow rotation = -Heading. 
+        // 0 Hdg -> Arrow Up (0 rot).
+        // 90 Hdg -> Arrow Left (-90 rot).
+        const rot = -camHeading * (Math.PI / 180);
+
+        const cx = els.canvas.width - 50;
+        const cy = 50;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // --- Rotating Arrow ---
+        ctx.save(); // Isolate rotation
+        ctx.rotate(rot);
+
+        // Arrow Shape (Pointing UP at 0 rot)
+        // User requested White arrow with black shadow/outline.
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#000000'; // Black outline
+        ctx.lineWidth = 2; // Thicker outline for better visibility
+
+        const totalLen = 60;
+        const shaftW = 8;  // Reduced from 15
+        const headW = 20;  // Reduced from 30
+        const headLen = 25;
+
+        ctx.beginPath();
+        // Start bottom of shaft
+        // y coords: Up is -y.
+        // Shaft Bottom Left
+        ctx.moveTo(-shaftW / 2, totalLen / 2);
+        // Shaft Top Left (to Head base)
+        ctx.lineTo(-shaftW / 2, -totalLen / 2 + headLen);
+        // Head Left
+        ctx.lineTo(-headW / 2, -totalLen / 2 + headLen);
+        // Head Tip
+        ctx.lineTo(0, -totalLen / 2);
+        // Head Right
+        ctx.lineTo(headW / 2, -totalLen / 2 + headLen);
+        // Shaft Top Right
+        ctx.lineTo(shaftW / 2, -totalLen / 2 + headLen);
+        // Shaft Bottom Right
+        ctx.lineTo(shaftW / 2, totalLen / 2);
+
+        ctx.closePath();
+
+        ctx.shadowColor = 'transparent'; // Ensure no shadow
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore(); // End rotation
+
+        // --- Static N ---
+        // N (White text with black outline/shadow)
+        ctx.font = 'bold 18px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Stroke first (the "Shadow/Outline" separator)
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4; // Thick stroke to separate from white arrow
+        ctx.strokeText("N", 0, 1);
+
+        // Fill second (White)
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText("N", 0, 1);
+
+        ctx.restore(); // End translation
     }
 
     function drawGauges(data) {
@@ -238,9 +418,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.fillStyle = '#fff';
         ctx.beginPath();
-        ctx.moveTo(markerX - 5, zoomY);
-        ctx.lineTo(markerX + 5, zoomY);
-        ctx.lineTo(markerX, zoomY - 10);
+        // Pointing DOWN to the line from ABOVE
+        // Base at zoomY - 10, Tip at zoomY
+        ctx.moveTo(markerX - 5, zoomY - 10);
+        ctx.lineTo(markerX + 5, zoomY - 10);
+        ctx.lineTo(markerX, zoomY);
         ctx.fill();
     }
 
@@ -296,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLoop();
 
         // Update UI
-        els.btnRec.innerText = "STOP RECORDING (`)"
+        els.btnRec.innerText = "RECORDING DISABLE (`)"
         els.btnRec.classList.add('active');
     }
 
@@ -310,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Yes, `drawOSD` clears rect.
         // So we revert to just drawing OSD on transparent canvas, allowing <img> to show.
 
-        els.btnRec.innerText = "START RECORDING (`)"
+        els.btnRec.innerText = "RECORDING ENABLE (`)"
         els.btnRec.classList.remove('active');
     }
 
@@ -332,9 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // We need to cache latest data.
         if (latestOSDData) {
             // drawOSD clears rect... waiting.
-            // drawOSD calls clearRect. We must modify drawOSD to NOT clear if recording?
-            // Or just draw OSD manually here?
-            // Modification: drawOSD will only clear if NOT recording.
+            // drawOSD will only clear if NOT recording.
             drawOSD(latestOSDData, true); // true = skipClear
         }
 
@@ -348,10 +528,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Buttons Update
         els.btnTrack.classList.toggle('active', data.track_active);
-        els.btnTrack.innerText = data.track_active ? "STOP AUTO TRACK (SPACE)" : "START AUTO TRACK (SPACE)";
+        els.btnTrack.innerText = data.track_active ? "AUTO TRACK DISABLE (SPACE)" : "AUTO TRACK ENABLE (SPACE)";
 
         els.btnStab.classList.toggle('active', data.stab_active);
-        els.btnStab.innerText = data.stab_active ? "STOP DIGITAL STAB (Z)" : "START DIGITAL STAB (Z)";
+        els.btnStab.innerText = data.stab_active ? "DIGITAL STAB DISABLE (Z)" : "DIGITAL STAB ENABLE (Z)";
 
         // Inputs
         if (document.activeElement !== els.inP) els.inP.value = data.kp;
@@ -683,6 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Default Values
         let flight = '---';
+        let reg = '---'; // Add Reg
         let dist = '---';
         let alt = '---';
         let speed = '---';
@@ -691,16 +872,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (bestTarget) {
             flight = bestTarget.flight || 'N/A';
+            reg = bestTarget.reg || '---';
             dist = bestTarget.dist_nm.toFixed(1);
             alt = bestTarget.alt;
             speed = bestTarget.speed.toFixed(0);
             bearing = bestTarget.bearing.toFixed(0);
 
             // Calculate Elevation Look Angle
-            const altDiffFt = bestTarget.alt - CONFIG.CAMERA_HEIGHT_FT; // ft
-            const distFt = bestTarget.dist_nm * 6076;
-            const elevRad = Math.atan2(altDiffFt, distFt);
-            elev = (elevRad * (180 / Math.PI)).toFixed(1);
+            const altVal = parseInt(bestTarget.alt);
+            if (!isNaN(altVal) && typeof CONFIG !== 'undefined' && CONFIG.CAMERA_HEIGHT_FT !== undefined) {
+                const altDiffFt = altVal - CONFIG.CAMERA_HEIGHT_FT; // ft
+                const distFt = bestTarget.dist_nm * 6076;
+
+                if (distFt > 0) {
+                    const elevRad = Math.atan2(altDiffFt, distFt);
+                    elev = (elevRad * (180 / Math.PI)).toFixed(1);
+                } else {
+                    elev = "0.0";
+                }
+            } else {
+                elev = "NaN";
+            }
         }
 
         aircraftInfoDiv.innerHTML = `
@@ -709,6 +901,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="dash-item">
                     <span class="dash-label">FLIGHT</span>
                     <span class="dash-value highlight">${flight}</span>
+                </div>
+                 <div class="dash-item">
+                    <span class="dash-label">REG</span>
+                    <span class="dash-value">${reg}</span>
                 </div>
                 <div class="dash-item">
                     <span class="dash-label">RANGE</span>

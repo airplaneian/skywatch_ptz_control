@@ -9,6 +9,8 @@
     /* Keep for OSD active states */
     --border-light: #ffffff;
     --border-dark: #404040;
+    --border-color: #404040;
+    /* Added for video border */
     --font-mono: monospace;
 }
 
@@ -25,30 +27,22 @@ body {
     width: 100vw;
     height: 100vh;
     overflow: auto;
-    /* Allow scrolling */
     display: flex;
     justify-content: flex-start;
-    /* Align left for fixed width */
     align-items: flex-start;
-    /* Align top */
 }
 
 .main-container {
     width: 2560px;
-    /* Full monitor width */
     height: 100vh;
     display: grid;
     grid-template-columns: 1920px 1fr;
-    /* Video fixed, sidebar fills rest */
     background-color: #000;
     max-width: none;
     max-height: none;
 }
 
-@media (max-width: 2560px) {
-    /* Responsive handling needed? Just letting CSS Grid/Flex handle aspect ratio */
-    /* For now forcing the aspect ratio might be complex without JS, but let's assume 1440p monitor */
-}
+@media (max-width: 2560px) {}
 
 /* Video Section */
 .video-section {
@@ -91,7 +85,8 @@ body {
     /* Fixed viewport height */
     position: sticky;
     top: 0;
-    border-left: 2px solid var(--border-dark);
+    /* border-left removed to merge with radar section */
+    border-left: none;
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -103,10 +98,53 @@ body {
     display: none;
 }
 
+.sidebar-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.sidebar-logo {
+    max-width: 150px;
+    /* Reasonable size limit */
+    width: 100%;
+    /* Responsive up to max */
+    height: auto;
+    margin-bottom: 10px;
+}
+
+.sidebar-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text-sidebar);
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+}
+
 .control-group {
-    border: 2px groove var(--border-light);
+    border: 1px solid var(--border-light);
     padding: 15px;
     background: transparent;
+    margin-bottom: 20px;
+}
+
+.main-controls-box {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.main-controls-box button {
+    height: 60px;
+    /* Double height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: normal;
+    /* Fix alignment */
 }
 
 .control-group label {
@@ -135,8 +173,8 @@ button {
 }
 
 button:hover {
-    background: #444;
-    border-color: #777;
+    background: #d0d0d0;
+    border-color: var(--border-light);
 }
 
 button:active,
@@ -254,6 +292,19 @@ input[type="range"] {
     margin-top: 20px;
 }
 
+.main-container {
+    width: 2560px;
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1920px 1fr;
+    grid-template-rows: 1080px minmax(240px, 1fr);
+    /* Ensure row 2 fills rest */
+    background-color: #000;
+    max-width: none;
+    max-height: none;
+}
+
+/* Radar Section */
 /* Radar Section */
 .radar-section {
     grid-column: 1;
@@ -261,10 +312,13 @@ input[type="range"] {
     grid-row: 2;
     background: var(--panel-bg);
     /* Match sidebar gray */
-    border-top: 2px solid var(--border-light);
-    /* Keep top separator from video */
-    /* Removed right/bottom borders to merge with sidebar */
-    height: 240px;
+    /* Removed border-top to merge seamlessly if requested, or maybe make it cleaner? */
+    /* User said "remove bevel outline effect on bottom bar". */
+    /* If we remove border-top, it touches video. Video is black. */
+    /* Let's remove it as requested. */
+    border: none;
+    height: 100%;
+    /* Fill the grid row */
     display: flex;
     align-items: center;
     padding: 10px;
@@ -352,11 +406,4 @@ input[type="range"] {
 
 .dash-value.highlight {
     color: #cc0000;
-}
-
-.radar-controls {
-    width: 200px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
 }

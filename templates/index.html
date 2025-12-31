@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SkyWatch PTZ Control</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=25">
 </head>
 
 <body>
@@ -25,27 +25,22 @@
             </div>
             <div class="aircraft-info-container" id="aircraft-info">
             </div>
-            <div class="radar-controls">
-                <label>NORTH OFFSET</label>
-                <input type="number" id="input-offset" value="0" step="1">
-            </div>
+            <!-- Controls moved to sidebar -->
         </div>
 
         <!-- Control Sidebar -->
         <div class="control-sidebar">
-
-            <div class="control-group">
-                <button id="btn-track" class="btn-primary">START AUTO TRACK (SPACE)</button>
+            <div class="sidebar-header">
+                <img src="{{ url_for('static', filename='images/airplaneian_logo_black.png') }}" class="sidebar-logo"
+                    alt="Logo">
+                <div class="sidebar-title">SkyWatch PTZ Control {{ version }}</div>
             </div>
 
-            <div class="control-group">
-                <label>STABILIZATION</label>
-                <button id="btn-stab" class="btn-toggle">START DIGITAL STAB (Z)</button>
-            </div>
-
-            <div class="control-group">
-                <label>RECORDING</label>
-                <button id="btn-rec" class="btn-toggle">START RECORDING (`)</button>
+            <!-- Main Controls Group -->
+            <div class="control-group main-controls-box">
+                <button id="btn-track" class="btn-primary">AUTO TRACK ENABLE (SPACE)</button>
+                <button id="btn-stab" class="btn-toggle">DIGITAL STAB ENABLE (Z)</button>
+                <button id="btn-rec" class="btn-toggle">RECORDING ENABLE (`)</button>
             </div>
 
             <div class="control-group">
@@ -73,6 +68,11 @@
                 </div>
             </div>
 
+            <div class="control-group">
+                <label>RADAR OFFSET</label>
+                <input type="number" id="input-offset" value="0" step="1">
+            </div>
+
             <div class="control-group manual-controls">
                 <label>MANUAL JOG</label>
                 <div class="dpad">
@@ -89,7 +89,12 @@
             </div>
         </div>
     </div>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=7"></script>
+    <script>
+        const CONFIG = {
+            CAMERA_HEIGHT_FT: {{ camera_height }}
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=25"></script>
 </body>
 
 </html>

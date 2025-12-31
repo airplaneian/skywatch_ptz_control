@@ -4,6 +4,7 @@ RTSP_PORT = 554
 VISCA_PORT = 1259 # User specified UDP port
 CAMERA_WIDTH = 1920
 CAMERA_HEIGHT = 1080
+APP_VERSION = "0.8.0 Alpha"
 
 # RTSP Stream URL
 # User reported just IP:Port works in VLC, implying root path or auto-detect.

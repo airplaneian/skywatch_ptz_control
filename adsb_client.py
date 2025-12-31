@@ -55,9 +55,11 @@ class ADSBClient:
                     # Filter invalid data
                     lat = ac.get('lat')
                     lon = ac.get('lon')
-                    alt = ac.get('alt_baro') or ac.get('alt_geom') 
-                    # flight = ac.get('flight', 'N/A').strip()
-                    # hex_code = ac.get('hex')
+                    reg = ac.get('r') or ac.get('reg') or ac.get('registration') or '---'
+                    try:
+                        alt = int(ac.get('alt_baro') or ac.get('alt_geom') or 0)
+                    except:
+                        alt = 0
 
                     if lat is None or lon is None:
                         continue
@@ -72,9 +74,10 @@ class ADSBClient:
                     parsed_list.append({
                         'hex': ac.get('hex'),
                         'flight': ac.get('flight', '').strip(),
+                        'reg': reg,
                         'lat': lat,
                         'lon': lon,
-                        'alt': alt if alt else 0,
+                        'alt': alt,
                         'track': ac.get('track', 0),
                         'speed': ac.get('gs', 0),
                         'dist_nm': dist_nm,
