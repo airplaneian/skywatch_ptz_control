@@ -427,17 +427,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Recorder Logic ---
-    // --- Recorder Logic ---
     function startRecording() {
         if (isRecording) return;
 
         console.log("Starting Recording...");
         const stream = els.canvas.captureStream(30); // 30 FPS
 
-        // Since Chrome downloads 'mp4' as webm anyway if we force it, and the user
-        // requested to remove mp4 functionality, we revert to standard webm.
-        // We can try VP9 for better quality, or default.
-
+        // Default to webm/vp9 if supported, else standard webm
         let options = { mimeType: 'video/webm; codecs=vp9' };
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
             options = { mimeType: 'video/webm' };
@@ -509,13 +505,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Video might not be ready
         }
 
-        // 2. Draw OSD (Reuse function, but we need the latest 'data')
-        // We only have 'data' inside socket/SSE events.
-        // We need to cache latest data.
+        // 2. Draw OSD
         if (latestOSDData) {
-            // drawOSD clears rect... waiting.
-            // drawOSD will only clear if NOT recording.
-            drawOSD(latestOSDData, true); // true = skipClear
+            // Force skipClear=true to overlay on top of video
+            drawOSD(latestOSDData, true);
         }
 
         requestAnimationFrame(renderLoop);
@@ -542,11 +535,6 @@ document.addEventListener('DOMContentLoaded', () => {
             els.valSpeed.innerText = data.speed_limit;
         }
     }
-
-    // Modify drawOSD to support 'skipClear'
-    const originalDrawOSD = drawOSD;
-    // Overwriting definition above for simplicity in replace_block...
-    // I will rewrite the drawOSD function in the replacement block to handle 'skipClear'
 
     // --- Inputs ---
 
@@ -695,10 +683,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000);
 
-    // Radar Draw Loop (also triggered by Telemetry to update Camera Wedge smoothly)
-    // We'll hook into updateUI or just rely on the 1Hz aircraft poll + Animation Frame?
-    // Better to redraw radar whenever Telemetry updates (for smooth Wedge) OR 1Hz?
-    // Let's add drawRadar() to updateUI() as well, so the wedge moves smoothly.
+    // Radar Draw Loop
+    // Triggered by aircraft poll and telemetry updates
 
     function drawRadar() {
         const w = radarCanvas.width;

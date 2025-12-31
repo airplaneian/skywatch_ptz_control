@@ -4,3 +4,4 @@ visca-over-ip
 numpy
 Pillow
 flask
+PyYAML

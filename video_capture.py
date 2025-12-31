@@ -1,7 +1,7 @@
 import cv2
 import threading
 import time
-import time
+
 
 class ThreadedVideoCapture:
     def __init__(self, src=0, name="ThreadedVideoCapture"):
@@ -31,8 +31,7 @@ class ThreadedVideoCapture:
                 self.grabbed = grabbed
                 self.frame = frame
             
-            # If we lose connection, maybe try to reconnect or just wait?
-            # For now, we'll just sleep a tiny bit to prevent CPU spinning if read fails instantly
+            # Prevents CPU spin on read failure
             if not grabbed:
                 time.sleep(0.1)
 

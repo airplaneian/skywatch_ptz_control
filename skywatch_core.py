@@ -11,7 +11,8 @@ from video_capture import ThreadedVideoCapture
 from visca_control import CameraControl
 from kalman_filter import SkyWatchKalman
 
-# --- OSD Drawing Helpers (Moved from main.py) ---
+
+# --- OSD Drawing Helpers ---
 def draw_text(img, text, pos, font, scale, color, thickness=1):
     cv2.putText(img, text, pos, font, scale, (0, 0, 0), thickness + 2, cv2.LINE_AA)
     cv2.putText(img, text, pos, font, scale, color, thickness, cv2.LINE_AA)
@@ -75,8 +76,8 @@ class SkyWatchCore:
         # Shared Data for Web (Thread-Safe Inteface)
         self.latest_frame = None # The final frame with OSD
         self.telemetry = {
-            'pan': 0, 'tilt': 0, 'zoom': 1.0, # Changed zoom to 1.0
-            'kp': self.current_kp, 'ki': self.current_ki, 'kd': self.current_kd, # Used current_kp etc.
+            'pan': 0, 'tilt': 0, 'zoom': 1.0, 
+            'kp': self.current_kp, 'ki': self.current_ki, 'kd': self.current_kd,
             'speed_limit': self.current_max_speed,
             'status': "STANDBY",
             'fps': 0,
@@ -96,7 +97,6 @@ class SkyWatchCore:
         self.ptz.start_polling(interval=0.2)
         self.video = ThreadedVideoCapture(config.RTSP_URL).start()
         
-        # Start Loop
         # Start Loop
         self.thread = threading.Thread(target=self._safe_update_loop, daemon=True)
         self.thread.start()
@@ -136,15 +136,15 @@ class SkyWatchCore:
 
     def start_tracking(self):
         self.tracking_active = True
-        # Reset PID
-        # Reset PID
+        self.tracking_active = True
+        # Reset PID Integegrals
         for k in self.pid_state:
             if k not in ['last_sent_pan', 'last_sent_tilt', 'last_visca_time']:
                 self.pid_state[k] = 0
         self.kf = None
         self.tracker = None 
-        # Note: Actual tracker initialization happens in the loop when we have a frame
-        # We need a flag to tell the loop "Please Initialize Tracker on Center"
+        self.tracker = None 
+        # Note: Actual tracker initialization happens in the loop when we have a valid frame
         self.init_tracker_requested = True
 
     def stop_tracking(self):
@@ -175,7 +175,7 @@ class SkyWatchCore:
             return self.telemetry.copy()
 
     def _get_dynamic_max_speed(self, error_dist):
-        # ... logic from main.py ...
+        """Calculates speed limit based on distance to error threshold."""
         prev_dist = 0
         prev_speed = 0.0
         for threshold, limit in config.DYNAMIC_SPEED_RANGES:
@@ -266,8 +266,11 @@ class SkyWatchCore:
                     error_x = center_x - kf_x
                     error_y = center_y - kf_y
                     
-                    # ... PID Logic (copied/adapted from main.py) ...
-                    # Using self.pid_state dictionary
+                    # PID Calc
+                    error_x = center_x - kf_x
+                    error_y = center_y - kf_y
+                    
+                    # PID Control Logic
                     
                     dynamic_limit = self._get_dynamic_max_speed(max(abs(error_x), abs(error_y)))
                     active_max_speed = min(self.current_max_speed, dynamic_limit)
@@ -355,10 +358,8 @@ class SkyWatchCore:
 
             # Manual Control
             if not self.tracking_active:
-                # Check for manual commands
-                 # Simplified Manual Logic for now
-                 # manual_cmd format: {'pan': 0, 'tilt': 0, 'zoom': 0, 'timestamp': ts}
-                 # We need to stop if timestamp is old
+                # Manual commands are updated via API
+                # We enforce a timeout (watchdog) to stop movement if control stream is lost
                  if time.time() - self.manual_cmd['timestamp'] < 0.25: # 250ms Keep-Alive
                      self.manual_mode_active = True
                      
@@ -463,7 +464,7 @@ class SkyWatchCore:
                 
                 # Update Telemetry Dict
                 self.telemetry['track_active'] = self.tracking_active
-                self.telemetry['stab_active'] = self.digital_stabilization_active # Corrected to digital_stabilization_active
+                self.telemetry['stab_active'] = self.digital_stabilization_active
                 self.telemetry['kp'] = self.current_kp
                 self.telemetry['ki'] = self.current_ki
                 self.telemetry['kd'] = self.current_kd

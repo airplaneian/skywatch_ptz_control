@@ -1,9 +1,9 @@
 # SkyWatch PTZ Control
 
 ## Project Philosophy
-**SkyWatch** was created to explore the limits of an inexpensive, off-the-shelf PTZ (Pan-Tilt-Zoom) camera. While these cameras are typically designed for stationary subjects in conference rooms, this project aims to adapt one for tracking fast-moving targets (specifically aircraft) by implementing custom control software.
+**SkyWatch** was created to explore the limits of an inexpensive, off-the-shelf PTZ (Pan-Tilt-Zoom) camera. While these cameras are typically designed for affordable live event streaming, this project aims to adapt one for tracking fast-moving targets (specifically aircraft but it is object-agnostic) by implementing custom control software.
 
-The goal is to improve tracking performance and provide better situational awareness than the standard camera software allows, applying principles like sensor fusion and control theory to consumer hardware.
+The goal is to improve tracking performance and provide better situational awareness than the standard camera software allows, applying principles like sensor fusion and control theory to consumer hardware with a focus on aviation since that's a personal area of interest.
 
 ## System Architecture
 
@@ -41,11 +41,22 @@ The system integrates with a local **ADS-B Receiver** (e.g., `dump1090`) to prov
     ```bash
     pip install -r requirements.txt
     ```
-2.  **Configuration**: 
-    Edit `config.py` to match your hardware environment.
-    -   `CAMERA_IP`: The static IP of your PTZ camera.
-    -   `CAMERA_LAT`/`LON`/`HEIGHT`: Your physical location (critical for accurate ADS-B mapping).
-    -   `ADSB_URL`: The JSON endpoint of your local feeder (usually `http://<pi-ip>:8080/data/aircraft.json`).
+2.  **Configuration**:
+    Copy the example configuration file:
+    ```bash
+    cp config.example.yaml config.yaml
+    ```
+    Edit `config.yaml` to match your environment. 
+    
+    > [!IMPORTANT]
+    > **Hardware Compatibility**: This software was developed for the **AVKANS LV20N**. 
+    > While it supports the standard VISCA-over-IP protocol (used by Sony, PTZOptics, and others), mechanical characteristics like Pan/Tilt speeds and zoom steps vary significantly between models.
+    > You may need to adjust the `camera.mechanics` section in `config.yaml` to calibrate the tracking for your specific hardware.
+
+    Key settings to check:
+    -   `camera.ip`: Your camera's static IP.
+    -   `location`: Your lat/long/altitude (required for accurate ADS-B augmented reality features).
+    -   `adsb.url`: The JSON endpoint of your local feeder.
 
 ## Operation Guide
 

@@ -29,9 +29,8 @@ def generate_mjpeg():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n')
         
-        # Limit frame rate of stream slightly to save bandwidth? 
-        # Or run as fast as possible. 
-        time.sleep(0.016) # ~60fps cap
+        # Limit frame rate to ~60fps to balance smoothness and bandwidth
+        time.sleep(0.016)
 
 def generate_telemetry():
     """Generator for SSE Telemetry."""
@@ -94,7 +93,6 @@ def start_server():
     adsb.start()
     
     # Start Flask
-    # Note: debug=False, threaded=True is default
     app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
 
 if __name__ == '__main__':

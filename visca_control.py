@@ -11,6 +11,7 @@ class CameraControl:
         self.sock.settimeout(0.5) # Timeout for receiving
         self.address = (self.ip, self.port)
         self.sequence_number = 1
+        self.sequence_number = 1
         self.lock = threading.Lock() # Thread safety for socket access
         
         # Polling State
@@ -31,8 +32,8 @@ class CameraControl:
                 print(f"Error sending UDP packet: {e}")
 
     def _receive_packet(self):
-        # Assumes lock is held by caller if needed, but recvfrom is blocking-ish
-        # We should hold lock during the whole transaction (send + recv) for queries
+        # Socket recv is blocking with timeout, so we rely on the
+        # polling thread to handle continuous reads.
         try:
             data, addr = self.sock.recvfrom(1024)
             return data
@@ -79,34 +80,18 @@ class CameraControl:
                 time.sleep(0.1) # Avoid tight loop on error
 
     def _process_packet(self, data):
-        # VISCA Response Format:
-        # Header (if present): 8 bytes? No, we are assuming raw VISCA or checking.
-        # Standard VISCA response starts with y0 (y=source address + 8). Camera usually 1 -> 90.
-        # But over IP it might be different.
-        # Let's look at the data.
-        
+        """
+        Parses incoming VISCA packets.
+        Standard VISCA response format: y0 50 ... FF
+        where y = Source Address + 8 (Camera 1 -> 0x90)
+        """
         if len(data) < 3: return
         
-        # Check for Zoom Inquiry Response: y0 50 0p 0q 0r 0s FF
-        # y0 is typically 0x90 (Camera 1 to Controller 0)
-        # 50 is Inquiry Completion
-        
-        # We need to be careful about matching.
-        # Zoom Resp length is 7.
-        # Pan/Tilt Resp length is 11.
-        
-        # Byte 1 should be 0x50 (Completion/Inquiry Response)
-        # (Byte 0 is header/sender)
-        
+        # Check for Inquiry Completion (0x50 in byte 1)
         if data[1] == 0x50:
-            # It's an inquiry response
-            
-            # Check for Zoom (Length 7)
-            # Pattern: y0 50 0p 0q 0r 0s FF
-            # But wait, how do we distinguish Zoom from other 7-byte responses?
-            # We don't strictly know *which* inquiry it is just by length, 
-            # but Zoom and PanTilt are the only ones we ask for.
-            # PanTilt is 11 bytes. Zoom is 7.
+            # Differentiate based on packet length
+            # Zoom Inquiry Response is 7 bytes
+            # Pan/Tilt Inquiry Response is 11 bytes
             
             if len(data) == 7:
                 # Assume Zoom
@@ -142,9 +127,8 @@ class CameraControl:
         self._send_packet(cmd)
 
     def get_cached_pos(self):
+        """Returns the most recently received position data."""
         return self.cached_zoom, self.cached_pan, self.cached_tilt
-
-    # Legacy synchronous methods removed/replaced
     def get_zoom_pos(self):
         return self.cached_zoom
 

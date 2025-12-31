@@ -1,0 +1,38 @@
+# SkyWatch PTZ Control - Configuration File
+# This is your local configuration.
+
+camera:
+  # Network Settings
+  ip: "192.168.1.191"
+  visca_port: 1259
+  rtsp_port: 554
+
+  # Mechanical / Motor Settings
+  mechanics:
+    pan_counts_per_degree: 24.0
+    tilt_counts_per_degree: 24.0
+    zoom_max_hex: 16384 # 0x4000
+    zoom_max_x: 20.0
+    invert_pan: true
+    invert_tilt: false
+    max_pan_speed: 6
+    max_tilt_speed: 6
+    min_pan_speed: 1
+    min_tilt_speed: 1
+
+location:
+  lat: 37.818728
+  lng: -122.268427
+  alt_ft: 60
+
+adsb:
+  url: "http://adsb-feeder.local:8080/data/aircraft.json"
+  max_range_nm: 10
+
+control:
+  pan_kp: 0.5
+  pan_ki: 0.05
+  pan_kd: 0.9
+  tilt_kp: 0.5
+  tilt_ki: 0.05
+  tilt_kd: 0.9

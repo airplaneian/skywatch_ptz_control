@@ -1,0 +1,48 @@
+# SkyWatch PTZ Control - Configuration File
+# Copy this file to 'config.yaml' and edit your settings.
+
+camera:
+  # Network Settings
+  ip: "192.168.1.191"
+  visca_port: 1259      # UDP Port for VISCA control
+  rtsp_port: 554        # RSTP Video Port
+  # Optional: RTSP URL override if standard "rtsp://ip:port/" doesn't work
+  # rtsp_url: "rtsp://user:pass@192.168.1.191:554/stream1"
+
+  # Mechanical / Motor Settings
+  # These vary by camera make/model. Values below are for AVKANS LV20N.
+  mechanics:
+    pan_counts_per_degree: 24.0   # How many VISCA position units equal 1 degree
+    tilt_counts_per_degree: 24.0  
+    zoom_max_hex: 16384           # 0x4000
+    zoom_max_x: 20.0              # Optical zoom factor (e.g. 20x, 30x)
+    
+    # Invert Controls (True/False)
+    invert_pan: true   # Set to true if camera moves left when you expect right
+    invert_tilt: false
+    
+    # Speed Limits (VISCA range usually 1-24 for Pan, 1-20 for Tilt)
+    max_pan_speed: 6
+    max_tilt_speed: 6
+    min_pan_speed: 1
+    min_tilt_speed: 1
+
+location:
+  # Camera Position (Decimal Degrees)
+  lat: 37.818728
+  lng: -122.268427
+  alt_ft: 60           # Altitude in feet (AGL or MSL depending on your preference logic)
+
+adsb:
+  # ADS-B Feeder URL (dump1090/tar1090 aircraft.json)
+  url: "http://adsb-feeder.local:8080/data/aircraft.json"
+  max_range_nm: 10     # Max range to track aircraft (Nautical Miles)
+
+control:
+  # PID Controller Settings (Advanced Tuning)
+  pan_kp: 0.5
+  pan_ki: 0.05
+  pan_kd: 0.9
+  tilt_kp: 0.5
+  tilt_ki: 0.05
+  tilt_kd: 0.9
